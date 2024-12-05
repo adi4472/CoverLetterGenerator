@@ -1,0 +1,19 @@
+import sqlite3
+
+# Initialize the database
+connection = sqlite3.connect("bot_data.db")
+cursor = connection.cursor()
+
+# Create a table for user settings
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS user_settings (
+    user_id TEXT PRIMARY KEY,
+    is_agency BOOLEAN,
+    job_channel TEXT,
+    response_channel TEXT,
+    profile TEXT,
+    specialties TEXT
+)
+""")
+connection.commit()
+connection.close()
