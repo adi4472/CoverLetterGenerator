@@ -4,6 +4,7 @@ import openai
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
+from docx import Document  # Import library to handle .docx files
 
 # Load environment variables from .env file
 load_dotenv()
@@ -18,6 +19,26 @@ client = WebClient(token=slack_token)
 # Channel IDs
 PROPOSAL_CHANNEL_ID = "C082W4UDLJJ"  # Proposal channel ID
 RESULT_CHANNEL_ID = "C08383AU6HZ"   # Result channel ID
+
+# Load your resume from a .txt file
+RESUME_PATH = "resume.txt"  # Path to your .txt resume
+
+def load_resume_from_txt(filepath):
+    """Reads text from a .txt file and returns it as a string."""
+    try:
+        with open(filepath, "r", encoding="utf-8") as file:
+            resume_text = file.read().strip()  # Read and strip any extra whitespace
+        return resume_text
+    except Exception as e:
+        print(f"Error loading resume: {e}")
+        return "Resume not available."
+
+# Load resume content
+resume_content = load_resume_from_txt(RESUME_PATH)
+
+# Debug: Print loaded resume content
+print("Resume Content Loaded:\n", resume_content)
+
 
 app = Flask(__name__)
 
@@ -62,19 +83,20 @@ def slack_events():
     return "Event received", 200
 
 
-# Generate cover letter using OpenAI (Updated for gpt-3.5-turbo)
+# Generate cover letter using OpenAI with resume context
 def generate_cover_letter(proposal_text):
     try:
         print("Sending request to OpenAI...")
 
-        # Send the request to OpenAI's chat completion API using the updated model
+        # Send the request to OpenAI's chat completion API
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",  # Or "gpt-4" if you have access to it
             messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": f"Write a cover letter for the following project proposal: {proposal_text}"}
+                {"role": "system", "content": "You are a helpful assistant that generates personalized cover letters."},
+                {"role": "system", "content": f"My resume: {resume_content}"},
+                {"role": "user", "content": f"Write a personalized cover letter for the following project proposal: {proposal_text}"}
             ],
-            max_tokens=250  # Adjust token limit as necessary
+            max_tokens=350  # Adjust token limit as necessary
         )
 
         # Extract the generated cover letter
@@ -93,6 +115,17 @@ def generate_cover_letter(proposal_text):
     except Exception as e:
         print(f"Error generating cover letter: {e}")
         return "Sorry, there was an unexpected error."
+
+# Endpoint to update resume dynamically
+@app.route("/update-resume", methods=["POST"])
+def update_resume():
+    global resume_content
+    data = request.json
+    new_resume = data.get("resume")
+    if new_resume:
+        resume_content = new_resume
+        return jsonify({"message": "Resume updated successfully"}), 200
+    return jsonify({"error": "No resume provided"}), 400
 
 # Run the Flask app
 if __name__ == "__main__":
